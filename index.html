@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Investors Club Leaderboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Investors Club Leaderboard</h1>
+    <p class="subtitle">Updated by officers every few days</p>
+  </header>
+
+  <main>
+    <section class="board">
+      <div class="board-header">
+        <h2>Current Standings</h2>
+        <span id="last-updated"></span>
+      </div>
+      <div class="table-wrap">
+        <table id="leaderboard">
+          <thead>
+            <tr>
+              <th data-key="Rank" class="sortable">Rank</th>
+              <th data-key="Member" class="sortable">Member</th>
+              <th data-key="Portfolio Value" class="sortable">Portfolio Value</th>
+              <th data-key="Return %" class="sortable">Return %</th>
+              <th data-key="Notes">Notes</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="tip">This page updates automatically on refresh.</p>
+    </section>
+
+    <section class="news">
+      <h2>Market Updates</h2>
+      <p class="subtitle">Latest tweet from @MarketWatch</p>
+
+      <!-- Single-card style: show the most recent tweet only -->
+      <a
+        class="twitter-timeline"
+        data-height="520"
+        data-chrome="noheader nofooter noborders transparent"
+        data-tweet-limit="1"
+        data-dnt="true"
+        href="https://twitter.com/MarketWatch"
+      >Tweets by MarketWatch</a>
+    </section>
+  </main>
+
+  <!-- X/Twitter widget -->
+  <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+  <!-- Papa Parse for CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script>
+    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS8N623kjjzxGNpqxrNsH2eZKK8EPjKO1mHLrp0EqLbzTCZ9HcOchvhllLKdnfMx2DVb9Lb4jUYc6Gd/pub?gid=0&single=true&output=csv";
+  </script>
+  <script src="script.js"></script>
+</body>
+</html>
