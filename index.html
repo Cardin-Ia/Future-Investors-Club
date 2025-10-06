@@ -7,17 +7,19 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header>
+  <header class="site-header">
     <h1>Investors Club Leaderboard</h1>
     <p class="subtitle">Updated by officers every few days</p>
   </header>
 
-  <main>
-    <section class="board">
+  <main class="container">
+    <!-- Leaderboard -->
+    <section class="card board">
       <div class="board-header">
         <h2>Current Standings</h2>
         <span id="last-updated"></span>
       </div>
+
       <div class="table-wrap">
         <table id="leaderboard">
           <thead>
@@ -32,86 +34,86 @@
           <tbody></tbody>
         </table>
       </div>
+
       <p class="tip">This page updates automatically on refresh.</p>
     </section>
 
-    <section class="news">
-  <h2>Market Updates</h2>
-  <p class="subtitle">Latest from @MarketWatch (auto-updates)</p>
+    <!-- News panel -->
+    <section class="card news">
+      <h2>Market Updates</h2>
+      <p class="subtitle">Latest from @MarketWatch</p>
 
-  <!-- X embed (will auto-hide if blocked) -->
-  <div id="x-embed">
-    <a class="twitter-timeline"
-       data-tweet-limit="1"
-       data-chrome="noheader nofooter noborders transparent"
-       data-dnt="true"
-       href="https://twitter.com/MarketWatch">Tweets by MarketWatch</a>
-  </div>
+      <!-- X embed (shows full tweet text + images when allowed) -->
+      <div id="x-embed">
+        <a class="twitter-timeline"
+           data-tweet-limit="1"
+           data-chrome="noheader nofooter noborders transparent"
+           data-dnt="true"
+           href="https://twitter.com/MarketWatch">Tweets by MarketWatch</a>
+      </div>
 
-  <!-- Fallback news list (hidden unless X fails) -->
-  <div id="news-fallback" style="display:none">
-    <p class="subtitle">Tweet preview blocked on this network. Showing headlines instead:</p>
-    <ul id="news-list" style="margin:0;padding-left:18px"></ul>
-    <p style="margin-top:8px">
-      <a id="mw-link" href="https://www.marketwatch.com/latest-news" target="_blank" rel="noopener">See more on MarketWatch →</a>
-    </p>
-  </div>
-</section>
+      <!-- Fallback if X is blocked -->
+      <div id="news-fallback" style="display:none">
+        <p class="subtitle">Tweet preview blocked on this network. Showing headlines instead:</p>
+        <ul id="news-list" class="news-list"></ul>
+        <a id="mw-link" class="news-more" href="https://www.marketwatch.com/latest-news" target="_blank" rel="noopener">
+          See more on MarketWatch →
+        </a>
+      </div>
+    </section>
   </main>
 
-  <!-- X/Twitter widget -->
+  <!-- Twitter widget -->
   <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-  <!-- Papa Parse for CSV -->
+
+  <!-- PapaParse for CSV → leaderboard -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <!-- Your Google Sheet CSV URL -->
   <script>
     const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS8N623kjjzxGNpqxrNsH2eZKK8EPjKO1mHLrp0EqLbzTCZ9HcOchvhllLKdnfMx2DVb9Lb4jUYc6Gd/pub?gid=0&single=true&output=csv";
   </script>
+
+  <!-- Leaderboard logic (keep your existing script.js, or use the one I gave earlier) -->
   <script src="script.js"></script>
-  <!-- X/Twitter widget -->
-<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
-<script>
-// If the X widget doesn't load, show RSS fallback headlines
-function showFallbackHeadlines() {
-  const fb = document.getElementById('news-fallback');
-  const list = document.getElementById('news-list');
-  const xBox = document.getElementById('x-embed');
-  if (!fb || !list || !xBox) return;
+  <!-- Fallback logic for news if X is blocked -->
+  <script>
+    function showFallbackHeadlines() {
+      const fb = document.getElementById('news-fallback');
+      const list = document.getElementById('news-list');
+      const xBox = document.getElementById('x-embed');
+      if (!fb || !list || !xBox) return;
 
-  // Hide X area, show fallback box
-  xBox.style.display = 'none';
-  fb.style.display = 'block';
+      xBox.style.display = 'none';
+      fb.style.display = 'block';
 
-  // Fetch MarketWatch RSS (via public CORS proxy)
-  const rss = 'https://www.marketwatch.com/rss/topstories';
-  const proxied = 'https://api.allorigins.win/get?url=' + encodeURIComponent(rss);
+      const rss = 'https://www.marketwatch.com/rss/topstories';
+      const proxied = 'https://api.allorigins.win/get?url=' + encodeURIComponent(rss);
 
-  fetch(proxied)
-    .then(r => r.ok ? r.json() : Promise.reject('RSS fetch failed'))
-    .then(data => {
-      const xml = (new DOMParser()).parseFromString(data.contents, "text/xml");
-      const items = Array.from(xml.querySelectorAll('item')).slice(0, 6);
-      if (!items.length) throw new Error('No RSS items');
-      list.innerHTML = items.map(it => {
-        const title = it.querySelector('title')?.textContent ?? 'Untitled';
-        const link = it.querySelector('link')?.textContent ?? '#';
-        return `<li style="margin:6px 0;"><a target="_blank" rel="noopener" href="${link}">${title}</a></li>`;
-      }).join('');
-    })
-    .catch(() => {
-      list.innerHTML = `<li>Couldn’t load headlines right now.</li>`;
+      fetch(proxied)
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(data => {
+          const xml = (new DOMParser()).parseFromString(data.contents, 'text/xml');
+          const items = Array.from(xml.querySelectorAll('item')).slice(0, 6);
+          list.innerHTML = items.map(it => {
+            const title = it.querySelector('title')?.textContent ?? 'Untitled';
+            const link = it.querySelector('link')?.textContent ?? '#';
+            return `<li><a target="_blank" rel="noopener" href="${link}">${title}</a></li>`;
+          }).join('');
+        })
+        .catch(() => {
+          list.innerHTML = `<li>Couldn’t load headlines right now.</li>`;
+        });
+    }
+
+    // If Twitter widgets don't init within 3s, use fallback
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const xLoaded = (window.twttr && window.twttr.widgets);
+        if (!xLoaded) showFallbackHeadlines();
+      }, 3000);
     });
-}
-
-// Give the X script a moment to initialize; if not, show fallback
-window.addEventListener('load', () => {
-  setTimeout(() => {
-    const xLoaded = (window.twttr && window.twttr.widgets);
-    if (!xLoaded) showFallbackHeadlines();
-  }, 3000);
-});
-</script>
-
+  </script>
 </body>
 </html>
-
