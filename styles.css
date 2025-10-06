@@ -2,7 +2,6 @@
   --bg:#0f1115; --card:#171a21; --text:#e8eaed; --muted:#aab2bd;
   --line:#222633; --head:#11151f; --link:#7bb3ff;
 }
-
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
 body{
@@ -37,7 +36,7 @@ h1{ margin:0 0 6px; font-size:28px; letter-spacing:.2px; }
   box-shadow: 0 0 0 1px rgba(0,0,0,.15) inset;
 }
 
-/* Board / table */
+/* Board / Table */
 .board-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
 #last-updated{ color:var(--muted); font-size:14px; }
 .table-wrap{ overflow:auto; border-radius:8px; border:1px solid var(--line); }
@@ -51,10 +50,7 @@ tbody td{ padding:12px; border-top:1px solid var(--line); }
 tbody tr:hover{ background:#121722; }
 .tip{ color:var(--muted); font-size:12px; margin-top:8px; }
 
-/* News */
+/* News Section */
 .news h2{ margin-top:0; }
-.news .news-list{ list-style:disc; margin:0; padding-left:18px; }
-.news .news-list li{ margin:6px 0; }
 .news a{ color:var(--link); text-decoration:none; }
 .news a:hover{ text-decoration:underline; }
-.news .news-more{ display:inline-block; margin-top:8px; }
