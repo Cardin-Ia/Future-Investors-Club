@@ -38,12 +38,12 @@
       <p class="tip">This page updates automatically on refresh.</p>
     </section>
 
-    <!-- Market Updates (robust RSS with multi-proxy fallback) -->
+    <!-- Market Updates with images -->
     <section class="card news">
       <h2>Market Updates</h2>
-      <p class="subtitle">Latest headlines from MarketWatch</p>
+      <p class="subtitle">Latest headlines from MarketWatch (with images)</p>
 
-      <ul id="news-list" class="news-list" style="margin:0; padding-left:18px;">
+      <ul id="news-list" class="news-list" style="margin:0; padding-left:0; list-style:none;">
         <li id="news-loading" style="color:#aab2bd;">Loading headlines…</li>
       </ul>
 
@@ -145,7 +145,7 @@
     loadCSV();
   </script>
 
-  <!-- MarketWatch headlines (multi-proxy RSS loader) -->
+  <!-- MarketWatch headlines with thumbnails -->
   <script>
     (function(){
       const MW_RSS = 'https://www.marketwatch.com/rss/topstories';
@@ -153,67 +153,98 @@
       const errEl  = document.getElementById('news-error');
       const loadingEl = document.getElementById('news-loading');
 
-      // Try rss2json first (JSON), then allorigins (JSON-wrapped XML), then codetabs (raw XML)
+      // 1) Try rss2json (often includes thumbnails)
       async function loadViaRss2Json() {
         const url = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(MW_RSS);
         const r = await fetch(url, { cache: 'no-store' });
         if (!r.ok) throw new Error('rss2json HTTP ' + r.status);
         const data = await r.json();
-        if (!data || !data.items) throw new Error('rss2json bad payload');
-        return data.items.slice(0,6).map(it => ({
+        if (!data || !Array.isArray(data.items)) throw new Error('rss2json bad payload');
+        return data.items.slice(0, 6).map(it => ({
           title: it.title,
           link: it.link,
-          date: it.pubDate
+          date: it.pubDate,
+          // rss2json exposes thumbnail or enclosure.link sometimes
+          thumb: it.thumbnail || (it.enclosure && (it.enclosure.link || it.enclosure.url)) || ''
         }));
       }
 
+      // 2) Fallback: allorigins JSON-wrapped XML (look for media:content or enclosure)
       async function loadViaAllOrigins() {
         const url = 'https://api.allorigins.win/get?url=' + encodeURIComponent(MW_RSS);
         const r = await fetch(url, { cache: 'no-store' });
         if (!r.ok) throw new Error('allorigins HTTP ' + r.status);
         const json = await r.json();
         const xml = new DOMParser().parseFromString(json.contents, 'text/xml');
-        const items = Array.from(xml.querySelectorAll('item')).slice(0,6);
+        const items = Array.from(xml.querySelectorAll('item')).slice(0, 6);
         if (!items.length) throw new Error('allorigins no items');
-        return items.map(it => ({
-          title: it.querySelector('title')?.textContent ?? 'Untitled',
-          link: it.querySelector('link')?.textContent ?? '#',
-          date: it.querySelector('pubDate')?.textContent ?? ''
-        }));
+        const ns = (el, sel) => el.querySelector(sel) || el.querySelector(sel.replace('media\\:', ''));
+        return items.map(it => {
+          const title = it.querySelector('title')?.textContent ?? 'Untitled';
+          const link  = it.querySelector('link')?.textContent ?? '#';
+          const date  = it.querySelector('pubDate')?.textContent ?? '';
+          const media = it.querySelector('media\\:content[url], content[url], enclosure[url]');
+          const thumb = media ? (media.getAttribute('url') || '') : '';
+          return { title, link, date, thumb };
+        });
       }
 
-      async function loadViaCodeTabs() {
-        const url = 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(MW_RSS);
-        const r = await fetch(url, { cache: 'no-store' });
-        if (!r.ok) throw new Error('codetabs HTTP ' + r.status);
-        const text = await r.text();
-        const xml = new DOMParser().parseFromString(text, 'text/xml');
-        const items = Array.from(xml.querySelectorAll('item')).slice(0,6);
-        if (!items.length) throw new Error('codetabs no items');
-        return items.map(it => ({
-          title: it.querySelector('title')?.textContent ?? 'Untitled',
-          link: it.querySelector('link')?.textContent ?? '#',
-          date: it.querySelector('pubDate')?.textContent ?? ''
-        }));
+      // Optional: fetch OG image from the article page (limited & timeout)
+      async function fetchOgImage(url, timeoutMs=3500) {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const proxied = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+          const r = await fetch(proxied, { signal: controller.signal, cache:'no-store' });
+          if (!r.ok) throw new Error('og proxy HTTP ' + r.status);
+          const data = await r.json();
+          const html = data.contents;
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          const og = doc.querySelector('meta[property="og:image"], meta[name="og:image"]');
+          return og?.getAttribute('content') || '';
+        } catch { return ''; }
+        finally { clearTimeout(t); }
       }
 
-      function render(items){
+      function render(items) {
         const fmt = v => v ? new Date(v).toLocaleString() : '';
-        listEl.innerHTML = items.map(it =>
-          `<li style="margin:6px 0;">
-             <a target="_blank" rel="noopener" href="${it.link}">${it.title}</a>
-             ${it.date ? `<span style="color:#aab2bd; font-size:12px;"> — ${fmt(it.date)}</span>` : ''}
-           </li>`
-        ).join('');
+        listEl.innerHTML = items.map(it => {
+          const imgTag = it.thumb
+            ? `<a href="${it.link}" target="_blank" rel="noopener">
+                 <img src="${it.thumb}" alt="" style="width:96px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #222633;" loading="lazy">
+               </a>`
+            : `<div style="width:96px;height:64px;border-radius:8px;background:#11151f;border:1px solid #222633;"></div>`;
+          return `
+            <li style="display:flex;gap:10px;align-items:flex-start;margin:10px 0;">
+              ${imgTag}
+              <div style="min-width:0;">
+                <a target="_blank" rel="noopener" href="${it.link}" style="color:#7bb3ff;text-decoration:none;">${it.title}</a>
+                ${it.date ? `<div style="color:#aab2bd;font-size:12px;margin-top:2px;">${fmt(it.date)}</div>` : ''}
+              </div>
+            </li>`;
+        }).join('');
       }
 
       (async () => {
         try {
           loadingEl && loadingEl.remove();
+
+          // Load items
           let items;
           try { items = await loadViaRss2Json(); }
-          catch { try { items = await loadViaAllOrigins(); }
-                  catch { items = await loadViaCodeTabs(); } }
+          catch { items = await loadViaAllOrigins(); }
+
+          // For any missing thumbnails, try to fetch OG image (limit to first 3 to keep it snappy)
+          const missingIdx = items
+            .map((it, i) => (!it.thumb ? i : -1))
+            .filter(i => i >= 0)
+            .slice(0, 3);
+
+          await Promise.all(missingIdx.map(async i => {
+            const og = await fetchOgImage(items[i].link);
+            if (og) items[i].thumb = og;
+          }));
+
           render(items);
         } catch (e) {
           console.error('News load failed:', e);
