@@ -17,3 +17,7 @@ tbody td { padding:12px; border-top:1px solid #222633; }
 tbody tr:hover { background:#121722; }
 .tip { color:var(--muted); font-size:12px; margin-top:8px; }
 .news h2 { margin-top:0; }
+.news ul { list-style: disc; color: var(--text); }
+.news a { color: #7bb3ff; text-decoration: none; }
+.news a:hover { text-decoration: underline; }
+
