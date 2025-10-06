@@ -38,12 +38,14 @@
       <p class="tip">This page updates automatically on refresh.</p>
     </section>
 
-    <!-- Market Updates (RSS headlines, no X rate limit) -->
+    <!-- Market Updates (robust RSS with multi-proxy fallback) -->
     <section class="card news">
       <h2>Market Updates</h2>
       <p class="subtitle">Latest headlines from MarketWatch</p>
 
-      <ul id="news-list" class="news-list" style="margin:0; padding-left:18px;"></ul>
+      <ul id="news-list" class="news-list" style="margin:0; padding-left:18px;">
+        <li id="news-loading" style="color:#aab2bd;">Loading headlines…</li>
+      </ul>
 
       <p style="margin-top:8px;">
         <a href="https://www.marketwatch.com/latest-news" target="_blank" rel="noopener">See more on MarketWatch →</a>
@@ -143,53 +145,78 @@
     loadCSV();
   </script>
 
-  <!-- MarketWatch RSS headline fetcher -->
+  <!-- MarketWatch headlines (multi-proxy RSS loader) -->
   <script>
     (function(){
-      const RSS_URL = 'https://www.marketwatch.com/rss/topstories';
-      const PROXIES = [
-        url => 'https://api.allorigins.win/get?url=' + encodeURIComponent(url),
-        url => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url)
-      ];
+      const MW_RSS = 'https://www.marketwatch.com/rss/topstories';
       const listEl = document.getElementById('news-list');
       const errEl  = document.getElementById('news-error');
+      const loadingEl = document.getElementById('news-loading');
 
-      async function fetchWithFallback(url){
-        let lastErr;
-        for (const wrap of PROXIES){
-          const proxied = wrap(url);
-          try{
-            const r = await fetch(proxied, { cache: 'no-store' });
-            if (!r.ok) { lastErr = new Error('HTTP ' + r.status); continue; }
-            const text = r.headers.get('content-type')?.includes('application/json')
-              ? (await r.json()).contents
-              : (await r.text());
-            return text;
-          }catch(e){ lastErr = e; }
-        }
-        throw lastErr || new Error('All proxies failed');
+      // Try rss2json first (JSON), then allorigins (JSON-wrapped XML), then codetabs (raw XML)
+      async function loadViaRss2Json() {
+        const url = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(MW_RSS);
+        const r = await fetch(url, { cache: 'no-store' });
+        if (!r.ok) throw new Error('rss2json HTTP ' + r.status);
+        const data = await r.json();
+        if (!data || !data.items) throw new Error('rss2json bad payload');
+        return data.items.slice(0,6).map(it => ({
+          title: it.title,
+          link: it.link,
+          date: it.pubDate
+        }));
       }
 
-      function renderRSS(xmlText){
-        const xml = new DOMParser().parseFromString(xmlText, 'text/xml');
-        const items = Array.from(xml.querySelectorAll('item')).slice(0, 6);
-        if (!items.length) throw new Error('No RSS items');
-        listEl.innerHTML = items.map(it => {
-          const title = it.querySelector('title')?.textContent ?? 'Untitled';
-          const link  = it.querySelector('link')?.textContent ?? '#';
-          const rawDate = it.querySelector('pubDate')?.textContent;
-          const when = rawDate ? new Date(rawDate).toLocaleString() : '';
-          const dateSpan = when ? `<span style="color:#aab2bd; font-size:12px;"> — ${when}</span>` : '';
-          return `<li style="margin:6px 0;"><a target="_blank" rel="noopener" href="${link}">${title}</a>${dateSpan}</li>`;
-        }).join('');
+      async function loadViaAllOrigins() {
+        const url = 'https://api.allorigins.win/get?url=' + encodeURIComponent(MW_RSS);
+        const r = await fetch(url, { cache: 'no-store' });
+        if (!r.ok) throw new Error('allorigins HTTP ' + r.status);
+        const json = await r.json();
+        const xml = new DOMParser().parseFromString(json.contents, 'text/xml');
+        const items = Array.from(xml.querySelectorAll('item')).slice(0,6);
+        if (!items.length) throw new Error('allorigins no items');
+        return items.map(it => ({
+          title: it.querySelector('title')?.textContent ?? 'Untitled',
+          link: it.querySelector('link')?.textContent ?? '#',
+          date: it.querySelector('pubDate')?.textContent ?? ''
+        }));
       }
 
-      (async ()=>{
-        try{
-          const xml = await fetchWithFallback(RSS_URL);
-          renderRSS(xml);
-        }catch(e){
-          console.error('RSS load failed:', e);
+      async function loadViaCodeTabs() {
+        const url = 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(MW_RSS);
+        const r = await fetch(url, { cache: 'no-store' });
+        if (!r.ok) throw new Error('codetabs HTTP ' + r.status);
+        const text = await r.text();
+        const xml = new DOMParser().parseFromString(text, 'text/xml');
+        const items = Array.from(xml.querySelectorAll('item')).slice(0,6);
+        if (!items.length) throw new Error('codetabs no items');
+        return items.map(it => ({
+          title: it.querySelector('title')?.textContent ?? 'Untitled',
+          link: it.querySelector('link')?.textContent ?? '#',
+          date: it.querySelector('pubDate')?.textContent ?? ''
+        }));
+      }
+
+      function render(items){
+        const fmt = v => v ? new Date(v).toLocaleString() : '';
+        listEl.innerHTML = items.map(it =>
+          `<li style="margin:6px 0;">
+             <a target="_blank" rel="noopener" href="${it.link}">${it.title}</a>
+             ${it.date ? `<span style="color:#aab2bd; font-size:12px;"> — ${fmt(it.date)}</span>` : ''}
+           </li>`
+        ).join('');
+      }
+
+      (async () => {
+        try {
+          loadingEl && loadingEl.remove();
+          let items;
+          try { items = await loadViaRss2Json(); }
+          catch { try { items = await loadViaAllOrigins(); }
+                  catch { items = await loadViaCodeTabs(); } }
+          render(items);
+        } catch (e) {
+          console.error('News load failed:', e);
           errEl && (errEl.style.display = 'block');
           listEl && (listEl.innerHTML = '');
         }
