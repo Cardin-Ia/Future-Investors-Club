@@ -1,7 +1,7 @@
 :root { --bg:#0f1115; --card:#171a21; --text:#e8eaed; --muted:#aab2bd; --accent:#5aa9ff; }
 * { box-sizing:border-box; }
 body { margin:0; font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial; color:var(--text); background:var(--bg); }
-header, footer { padding:24px; text-align:center; background:linear-gradient(180deg, #131722, #0f1115); }
+header { padding:24px; text-align:center; background:linear-gradient(180deg, #131722, #0f1115); }
 h1 { margin:0 0 6px; font-size:28px; }
 .subtitle { color:var(--muted); margin:0 0 8px; }
 main { max-width:1100px; margin:24px auto; padding:0 16px; display:grid; gap:24px; grid-template-columns:1fr 380px; }
@@ -17,4 +17,3 @@ tbody td { padding:12px; border-top:1px solid #222633; }
 tbody tr:hover { background:#121722; }
 .tip { color:var(--muted); font-size:12px; margin-top:8px; }
 .news h2 { margin-top:0; }
-footer p { margin:0; color:var(--muted); font-size:13px; }
