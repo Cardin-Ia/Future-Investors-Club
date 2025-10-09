@@ -1,4 +1,4 @@
-// Fetch & render CSV from Google Sheets
+// Google Sheets
 const tbody = document.querySelector("#leaderboard tbody");
 const lastUpdatedEl = document.getElementById("last-updated");
 
@@ -37,7 +37,7 @@ function sortByKey(rows, key, numeric=false){
       if (isNaN(x) && isNaN(y)) return 0;
       if (isNaN(x)) return 1;
       if (isNaN(y)) return -1;
-      return y - x; // desc
+      return y - x; 
     } else {
       return (""+A).localeCompare(""+B);
     }
@@ -75,7 +75,7 @@ function loadCSV(){
     header: true,
     complete: (results)=>{
       const rows = results.data.filter(r => Object.values(r).some(v => v && String(v).trim() !== ""));
-      // Default sort by Rank if present, else Return %
+      // Default sort by Rank 
       let sorted = rows;
       if (rows[0] && "Rank" in rows[0]) {
         sorted = rows.slice().sort((a,b)=> (parseFloat(a["Rank"])||999) - (parseFloat(b["Rank"])||999));
@@ -94,3 +94,4 @@ function loadCSV(){
 }
 
 loadCSV();
+
