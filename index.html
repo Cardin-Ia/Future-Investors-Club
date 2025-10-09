@@ -5,12 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Investors Club Leaderboard</title>
   <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="assets/club-logo.png" type="image/png" />
 </head>
 <body>
   <header class="site-header">
-    <h1>Investors Club Leaderboard</h1>
-    <p class="subtitle">Updated by officers every few days</p>
+    <div class="brand">
+      <img src="assets/club-logo.png" alt="Future Investors Club logo" class="logo">
+      <div>
+        <h1>Investors Club Leaderboard</h1>
+      </div>
+    </div>
   </header>
+
 
   <main class="container">
     <!-- Leaderboard -->
@@ -38,7 +44,7 @@
       <p class="tip">This page updates automatically on refresh.</p>
     </section>
 
-    <!-- Market Updates with images -->
+    <!-- Market Updates-->
     <section class="card news">
       <h2>Market Updates</h2>
 
@@ -52,7 +58,7 @@
     </section>
   </main>
 
-  <!-- Papa Parse for CSV -->
+  
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
   <!-- Google Sheet CSV link -->
@@ -60,7 +66,7 @@
     const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS8N623kjjzxGNpqxrNsH2eZKK8EPjKO1mHLrp0EqLbzTCZ9HcOchvhllLKdnfMx2DVb9Lb4jUYc6Gd/pub?gid=0&single=true&output=csv";
   </script>
 
-  <!-- Leaderboard logic -->
+  <!-- Leaderboard -->
   <script>
     const tbody = document.querySelector("#leaderboard tbody");
     const lastUpdatedEl = document.getElementById("last-updated");
@@ -140,7 +146,7 @@
     loadCSV();
   </script>
 
-  <!-- MarketWatch headlines with thumbnails -->
+  <!--thumbnails -->
   <script>
     (function(){
       const MW_RSS = 'https://www.marketwatch.com/rss/topstories';
@@ -148,7 +154,7 @@
       const errEl  = document.getElementById('news-error');
       const loadingEl = document.getElementById('news-loading');
 
-      // 1) Try rss2json (often includes thumbnails)
+     
       async function loadViaRss2Json() {
         const url = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(MW_RSS);
         const r = await fetch(url, { cache: 'no-store' });
@@ -159,12 +165,12 @@
           title: it.title,
           link: it.link,
           date: it.pubDate,
-          // rss2json exposes thumbnail or enclosure.link sometimes
+      
           thumb: it.thumbnail || (it.enclosure && (it.enclosure.link || it.enclosure.url)) || ''
         }));
       }
 
-      // 2) Fallback: allorigins JSON-wrapped XML (look for media:content or enclosure)
+      
       async function loadViaAllOrigins() {
         const url = 'https://api.allorigins.win/get?url=' + encodeURIComponent(MW_RSS);
         const r = await fetch(url, { cache: 'no-store' });
@@ -184,7 +190,7 @@
         });
       }
 
-      // Optional: fetch OG image from the article page (limited & timeout)
+     
       async function fetchOgImage(url, timeoutMs=3500) {
         const controller = new AbortController();
         const t = setTimeout(() => controller.abort(), timeoutMs);
@@ -224,12 +230,12 @@
         try {
           loadingEl && loadingEl.remove();
 
-          // Load items
+          
           let items;
           try { items = await loadViaRss2Json(); }
           catch { items = await loadViaAllOrigins(); }
 
-          // For any missing thumbnails, try to fetch OG image (limit to first 3 to keep it snappy)
+        
           const missingIdx = items
             .map((it, i) => (!it.thumb ? i : -1))
             .filter(i => i >= 0)
@@ -251,4 +257,5 @@
   </script>
 </body>
 </html>
+
 
