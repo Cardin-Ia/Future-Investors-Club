@@ -31,10 +31,10 @@
           <thead>
             <tr>
               <th data-key="Rank" class="sortable">Rank</th>
-              <th data-key="Member" class="sortable">Member</th>
-              <th data-key="Portfolio Value" class="sortable">Portfolio Value</th>
+              <th data-key="Name (ID)" class="sortable">Name (ID)</th>
+              <th data-key="Region Rank" class="sortable">Region Rank</th>
               <th data-key="Return %" class="sortable">Return %</th>
-              <th data-key="Notes">Notes</th>
+              <th data-key="Total Equity">Total Equity</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -80,10 +80,10 @@
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td>${r["Rank"] ?? ""}</td>
-          <td>${r["Member"] ?? ""}</td>
-          <td>${r["Portfolio Value"] ?? ""}</td>
+          <td>${r["Name (ID)"] ?? ""}</td>
+          <td>${r["Region Rank"] ?? ""}</td>
           <td>${r["Return %"] ?? ""}</td>
-          <td>${r["Notes"] ?? ""}</td>`;
+          <td>${r["Total Equity"] ?? ""}</td>`;
         tbody.appendChild(tr);
       });
     }
@@ -110,7 +110,7 @@
         let asc=false;
         th.addEventListener("click",()=>{
           const key=th.dataset.key;
-          const numeric=["Portfolio Value","Return %","Rank"].includes(key);
+          const numeric=["Name (ID)","Return %","Rank"].includes(key);
           let sorted=sortByKey(rows,key,numeric);
           if(asc)sorted.reverse();
           asc=!asc;
@@ -257,6 +257,7 @@
   </script>
 </body>
 </html>
+
 
 
 
