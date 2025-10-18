@@ -36,7 +36,7 @@ h1{ margin:0 0 6px; font-size:28px; letter-spacing:.2px; }
   box-shadow: 0 0 0 1px rgba(0,0,0,.15) inset;
 }
 
-/* Board / Table */
+/* Board */
 .board-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
 #last-updated{ color:var(--muted); font-size:14px; }
 .table-wrap{ overflow:auto; border-radius:8px; border:1px solid var(--line); }
@@ -53,8 +53,21 @@ tbody tr:hover{ background:#121722; }
 /* News Section */
 .news h2{ margin-top:0; }
 .news a{ color:var(--link); text-decoration:none; }
-<<<<<<< HEAD
 .news a:hover{ text-decoration:underline; }
-=======
-.news a:hover{ text-decoration:underline; }
->>>>>>> 4b16492285c50c5500ac3ff7a6c84051d269dda5
+
+/* logo */
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid black;        
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+}
