@@ -7,17 +7,19 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header>
+  <header class="site-header">
     <h1>Investors Club Leaderboard</h1>
     <p class="subtitle">Updated by officers every few days</p>
   </header>
 
-  <main>
-    <section class="board">
+  <main class="container">
+    <!-- Leaderboard Section -->
+    <section class="card board">
       <div class="board-header">
         <h2>Current Standings</h2>
         <span id="last-updated"></span>
       </div>
+
       <div class="table-wrap">
         <table id="leaderboard">
           <thead>
@@ -32,32 +34,32 @@
           <tbody></tbody>
         </table>
       </div>
+
       <p class="tip">This page updates automatically on refresh.</p>
     </section>
 
-    <section class="news">
+    <!-- Market Updates Section -->
+    <section class="card news">
       <h2>Market Updates</h2>
-      <p class="subtitle">Latest tweet from @MarketWatch</p>
+      <p class="subtitle">Latest from @MarketWatch</p>
 
-      <!-- Single-card style: show the most recent tweet only -->
-      <a
-        class="twitter-timeline"
-        data-height="520"
-        data-chrome="noheader nofooter noborders transparent"
-        data-tweet-limit="1"
-        data-dnt="true"
-        href="https://twitter.com/MarketWatch"
-      >Tweets by MarketWatch</a>
+      <!-- ✅ Your exact Twitter Publish embed -->
+      <a class="twitter-timeline" data-theme="dark" href="https://twitter.com/MarketWatch?ref_src=twsrc%5Etfw">
+        Tweets by MarketWatch
+      </a>
+      <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
     </section>
   </main>
 
-  <!-- X/Twitter widget -->
-  <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-  <!-- Papa Parse for CSV -->
+  <!-- Papa Parse for Google Sheet CSV -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <!-- Your public Google Sheet CSV link -->
   <script>
     const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS8N623kjjzxGNpqxrNsH2eZKK8EPjKO1mHLrp0EqLbzTCZ9HcOchvhllLKdnfMx2DVb9Lb4jUYc6Gd/pub?gid=0&single=true&output=csv";
   </script>
+
+  <!-- Leaderboard logic (keep your current script.js) -->
   <script src="script.js"></script>
 </body>
 </html>
