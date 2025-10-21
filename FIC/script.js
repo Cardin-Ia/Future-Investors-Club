@@ -104,25 +104,64 @@ function loadCSV(){
 
 loadCSV();
 
-/* ===========================
-   Market Updates (resilient)
-   =========================== */
-(function (){
-  const MW_RSS='https://www.marketwatch.com/rss/topstories';
-  const YF_RSS='https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC&region=US&lang=en-US';
+/* ===== Market Updates ===== */
+(function () {
+  const listEl = document.getElementById('news-list');
+  const errEl  = document.getElementById('news-error');
+  const loadingEl = document.getElementById('news-loading');
 
-  const listEl=document.getElementById('news-list');
-  const errEl=document.getElementById('news-error');
-  const loadingEl=document.getElementById('news-loading');
+  if (!listEl) return;
 
-  function render(items){
-    if(loadingEl) loadingEl.remove();
-    if(!items || !items.length){
-      errEl && (errEl.style.display='block');
-      listEl && (listEl.innerHTML='');
-      return;
-    }
-    const html=items.slice(0,6).map(it=>{
+  const FEEDS = [
+    {name: 'MarketWatch', url: 'https://www.marketwatch.com/rss/topstories'},
+    {name: 'MarketWatch (rss2json)', url: 'https://www.marketwatch.com/rss/topstories', kind: 'rss2json'},
+    {name: 'Reuters Business', url: 'https://feeds.reuters.com/reuters/businessNews'},
+    {name: 'Yahoo Finance', url: 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US'},
+    {name: 'CNBC Markets', url: 'https://www.cnbc.com/id/100003114/device/rss/rss.html'},
+    {name: 'WSJ Markets', url: 'https://feeds.a.dj.com/rss/RSSMarketsMain.xml'}
+  ];
+
+  function withTimeout(promise, ms = 7000) {
+    const t = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms));
+    return Promise.race([promise, t]);
+  }
+
+  async function fetchAllOrigins(url) {
+    const api = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+    const r = await withTimeout(fetch(api, { cache: 'no-store' }));
+    if (!r.ok) throw new Error('allorigins ' + r.status);
+    const data = await r.json();
+    const xml = new DOMParser().parseFromString(data.contents, 'text/xml');
+    const items = Array.from(xml.querySelectorAll('item'));
+    if (!items.length) throw new Error('no items');
+    return items.map(it => ({
+      title: it.querySelector('title')?.textContent?.trim() || 'Untitled',
+      link: it.querySelector('link')?.textContent?.trim() || '#',
+      date: it.querySelector('pubDate')?.textContent?.trim() || ''
+    }));
+  }
+
+  async function fetchRss2Json(url) {
+    const api = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(url);
+    const r = await withTimeout(fetch(api, { cache: 'no-store' }));
+    if (!r.ok) throw new Error('rss2json ' + r.status);
+    const data = await r.json();
+    if (!data || !Array.isArray(data.items)) throw new Error('bad payload');
+    return data.items.map(it => ({
+      title: it.title,
+      link: it.link,
+      date: it.pubDate || ''
+    }));
+  }
+
+  async function loadFrom(feed) {
+    if (feed.kind === 'rss2json') return fetchRss2Json(feed.url);
+    return fetchAllOrigins(feed.url);
+  }
+
+  function render(items) {
+    if (loadingEl) loadingEl.remove();
+    const html = items.slice(0, 6).map(it => {
       const when = it.date ? toPT(it.date) : '';
       return `
         <li style="display:flex;gap:10px;align-items:flex-start;margin:10px 0;">
@@ -130,66 +169,26 @@ loadCSV();
             <a target="_blank" rel="noopener" href="${it.link}" style="color:#7bb3ff;text-decoration:none;">
               ${it.title}
             </a>
-            ${when?`<div style="color:#aab2bd;font-size:12px;margin-top:2px;">${when}</div>`:''}
+            ${when ? `<div style="color:#aab2bd;font-size:12px;margin-top:2px;">${when}</div>` : ''}
           </div>
         </li>`;
     }).join('');
-    listEl.innerHTML=html;
+    listEl.innerHTML = html;
   }
 
-  function withTimeout(promise,ms){
-    const t=new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms));
-    return Promise.race([promise,t]);
-  }
-
-  async function fetchRss2Json(url){
-    const api='https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(url);
-    const r=await withTimeout(fetch(api,{cache:'no-store'}),6000);
-    if(!r.ok) throw new Error('rss2json '+r.status);
-    const data=await r.json();
-    if(!data || !Array.isArray(data.items)) throw new Error('rss2json bad payload');
-    return data.items.map(it=>({title:it.title,link:it.link,date:it.pubDate}));
-  }
-
-  async function fetchAllOrigins(url){
-    const api='https://api.allorigins.win/get?url='+encodeURIComponent(url);
-    const r=await withTimeout(fetch(api,{cache:'no-store'}),6000);
-    if(!r.ok) throw new Error('allorigins '+r.status);
-    const {contents}=await r.json();
-    const xml=new DOMParser().parseFromString(contents,'text/xml');
-    const items=Array.from(xml.querySelectorAll('item'));
-    if(!items.length) throw new Error('allorigins empty');
-    return items.map(it=>({
-      title:it.querySelector('title')?.textContent||'Untitled',
-      link:it.querySelector('link')?.textContent||'#',
-      date:it.querySelector('pubDate')?.textContent||''
-    }));
-  }
-
-  async function loadNews(){
-    try{
-      render(await fetchRss2Json(MW_RSS));
-      return;
-    }catch(e1){
-      console.warn('rss2json failed:',e1);
+  async function loadNews() {
+    for (const feed of FEEDS) {
+      try {
+        const items = await loadFrom(feed);
+        if (items && items.length) { render(items); return; }
+      } catch (e) {
+        console.warn('Feed failed:', feed.name, e.message || e);
+      }
     }
-    try{
-      render(await fetchAllOrigins(MW_RSS));
-      return;
-    }catch(e2){
-      console.warn('allorigins MW failed:',e2);
-    }
-    try{
-      // fallback to Yahoo Finance if MarketWatch blocks proxies
-      const items=await fetchAllOrigins(YF_RSS);
-      render(items);
-      return;
-    }catch(e3){
-      console.warn('allorigins YF failed:',e3);
-    }
-    errEl && (errEl.style.display='block');
-    listEl && (listEl.innerHTML='');
+    if (loadingEl) loadingEl.remove();
+    if (errEl) errEl.style.display = 'block';
+    listEl.innerHTML = '';
   }
 
-  if(listEl) loadNews();
+  loadNews();
 })();
