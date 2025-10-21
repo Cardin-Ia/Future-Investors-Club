@@ -44,22 +44,100 @@
       <p class="tip">This page updates automatically on refresh.</p>
     </section>
 
-    <!-- Market Updates-->
-    <section class="card news">
-      <h2>Market Updates</h2>
+  <!-- Market Updates (robust + simple) -->
+<script>
+(function(){
+  const listEl = document.getElementById('news-list');
+  const errEl  = document.getElementById('news-error');
+  const loadingEl = document.getElementById('news-loading');
 
-      <ul id="news-list" class="news-list" style="margin:0; padding-left:0; list-style:none;">
-        <li id="news-loading" style="color:#aab2bd;">Loading headlines…</li>
-      </ul>
+  if (!listEl) return;
 
-     
+  // Feeds: broad market headlines, then business wires
+  const FEEDS = [
+    // Google News search for US market headlines
+    'https://news.google.com/rss/search?q=stock+market&hl=en-US&gl=US&ceid=US:en',
+    // Reuters Business
+    'https://feeds.reuters.com/reuters/businessNews',
+    // CNBC Markets
+    'https://www.cnbc.com/id/100003114/device/rss/rss.html',
+    // Yahoo Finance S&P 500 headlines
+    'https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US'
+  ];
 
-      <p id="news-error" class="subtitle" style="display:none;">Couldn’t load headlines right now.</p>
-    </section>
-  </main>
+  // Fetch via AllOrigins (raw) to avoid CORS issues
+  async function fetchFeed(url, timeout=8000){
+    const ctrl = new AbortController();
+    const t = setTimeout(()=>ctrl.abort(), timeout);
+    try{
+      const proxy = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+      const r = await fetch(proxy, {signal: ctrl.signal, cache:'no-store'});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const text = await r.text();
+      const xml = new DOMParser().parseFromString(text, 'text/xml');
+      const items = Array.from(xml.querySelectorAll('item'));
+      if (!items.length) throw new Error('No items');
+      return items.map(it => ({
+        title: it.querySelector('title')?.textContent?.trim() || 'Untitled',
+        link: it.querySelector('link')?.textContent?.trim() || '#',
+        date: it.querySelector('pubDate')?.textContent?.trim() || ''
+      }));
+    } finally {
+      clearTimeout(t);
+    }
+  }
 
-  
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  function toPT(dateStr){
+    if(!dateStr) return '';
+    const dt = new Date(dateStr);
+    // Format in America/Los_Angeles directly (no manual -3hr hack)
+    const s = new Intl.DateTimeFormat('en-US',{
+      timeZone:'America/Los_Angeles',
+      year:'numeric', month:'short', day:'numeric',
+      hour:'numeric', minute:'2-digit', hour12:true
+    }).format(dt);
+    return s + ' PT';
+  }
+
+  function render(items){
+    if (loadingEl) loadingEl.remove();
+    listEl.innerHTML = items.slice(0,6).map(it => {
+      const when = it.date ? toPT(it.date) : '';
+      return `
+        <li style="display:flex;gap:10px;align-items:flex-start;margin:10px 0;">
+          <div style="min-width:0;">
+            <a target="_blank" rel="noopener" href="${it.link}" style="color:#7bb3ff;text-decoration:none;">
+              ${it.title}
+            </a>
+            ${when ? `<div style="color:#aab2bd;font-size:12px;margin-top:2px;">${when}</div>` : ''}
+          </div>
+        </li>
+      `;
+    }).join('');
+  }
+
+  async function loadNews(){
+    for (const url of FEEDS){
+      try{
+        const items = await fetchFeed(url);
+        if (items && items.length){
+          render(items);
+          return;
+        }
+      }catch(e){
+        // try next feed
+        console.warn('Feed failed:', url, e?.message || e);
+      }
+    }
+    if (loadingEl) loadingEl.remove();
+    if (errEl) errEl.style.display = 'block';
+    listEl.innerHTML = '';
+  }
+
+  loadNews();
+})();
+</script>
+
 
   <!-- Google Sheet CSV link -->
   <script>
