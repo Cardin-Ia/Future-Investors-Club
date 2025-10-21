@@ -17,7 +17,6 @@
     </div>
   </header>
 
-
   <main class="container">
     <!-- Leaderboard -->
     <section class="card board">
@@ -44,100 +43,18 @@
       <p class="tip">This page updates automatically on refresh.</p>
     </section>
 
-  <!-- Market Updates (robust + simple) -->
-<script>
-(function(){
-  const listEl = document.getElementById('news-list');
-  const errEl  = document.getElementById('news-error');
-  const loadingEl = document.getElementById('news-loading');
+    <!-- Market Updates -->
+    <section class="card news">
+      <h2>Market Updates</h2>
+      <ul id="news-list" class="news-list" style="margin:0; padding-left:0; list-style:none;">
+        <li id="news-loading" style="color:#aab2bd;">Loading headlines…</li>
+      </ul>
+      <p id="news-error" class="subtitle" style="display:none;">Couldn’t load headlines right now.</p>
+    </section>
+  </main>
 
-  if (!listEl) return;
-
-  // Feeds: broad market headlines, then business wires
-  const FEEDS = [
-    // Google News search for US market headlines
-    'https://news.google.com/rss/search?q=stock+market&hl=en-US&gl=US&ceid=US:en',
-    // Reuters Business
-    'https://feeds.reuters.com/reuters/businessNews',
-    // CNBC Markets
-    'https://www.cnbc.com/id/100003114/device/rss/rss.html',
-    // Yahoo Finance S&P 500 headlines
-    'https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US'
-  ];
-
-  // Fetch via AllOrigins (raw) to avoid CORS issues
-  async function fetchFeed(url, timeout=8000){
-    const ctrl = new AbortController();
-    const t = setTimeout(()=>ctrl.abort(), timeout);
-    try{
-      const proxy = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-      const r = await fetch(proxy, {signal: ctrl.signal, cache:'no-store'});
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      const text = await r.text();
-      const xml = new DOMParser().parseFromString(text, 'text/xml');
-      const items = Array.from(xml.querySelectorAll('item'));
-      if (!items.length) throw new Error('No items');
-      return items.map(it => ({
-        title: it.querySelector('title')?.textContent?.trim() || 'Untitled',
-        link: it.querySelector('link')?.textContent?.trim() || '#',
-        date: it.querySelector('pubDate')?.textContent?.trim() || ''
-      }));
-    } finally {
-      clearTimeout(t);
-    }
-  }
-
-  function toPT(dateStr){
-    if(!dateStr) return '';
-    const dt = new Date(dateStr);
-    // Format in America/Los_Angeles directly (no manual -3hr hack)
-    const s = new Intl.DateTimeFormat('en-US',{
-      timeZone:'America/Los_Angeles',
-      year:'numeric', month:'short', day:'numeric',
-      hour:'numeric', minute:'2-digit', hour12:true
-    }).format(dt);
-    return s + ' PT';
-  }
-
-  function render(items){
-    if (loadingEl) loadingEl.remove();
-    listEl.innerHTML = items.slice(0,6).map(it => {
-      const when = it.date ? toPT(it.date) : '';
-      return `
-        <li style="display:flex;gap:10px;align-items:flex-start;margin:10px 0;">
-          <div style="min-width:0;">
-            <a target="_blank" rel="noopener" href="${it.link}" style="color:#7bb3ff;text-decoration:none;">
-              ${it.title}
-            </a>
-            ${when ? `<div style="color:#aab2bd;font-size:12px;margin-top:2px;">${when}</div>` : ''}
-          </div>
-        </li>
-      `;
-    }).join('');
-  }
-
-  async function loadNews(){
-    for (const url of FEEDS){
-      try{
-        const items = await fetchFeed(url);
-        if (items && items.length){
-          render(items);
-          return;
-        }
-      }catch(e){
-        // try next feed
-        console.warn('Feed failed:', url, e?.message || e);
-      }
-    }
-    if (loadingEl) loadingEl.remove();
-    if (errEl) errEl.style.display = 'block';
-    listEl.innerHTML = '';
-  }
-
-  loadNews();
-})();
-</script>
-
+  <!-- Papa Parse -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
   <!-- Google Sheet CSV link -->
   <script>
@@ -171,12 +88,14 @@
       copy.sort((a,b)=>{
         const A=a[key]??"", B=b[key]??"";
         if(numeric){
-          const x=key==="Return %"?parsePercent(A):parseCurrency(A);
-          const y=key==="Return %"?parsePercent(B):parseCurrency(B);
+          let x,y;
+          if(key==="Return %"){ x=parsePercent(A); y=parsePercent(B); }
+          else if(key==="Region Rank"||key==="Rank"){ x=parseFloat(A); y=parseFloat(B); }
+          else { x=parseCurrency(A); y=parseCurrency(B); }
           if(isNaN(x)&&isNaN(y))return 0;
           if(isNaN(x))return 1;
           if(isNaN(y))return -1;
-          return y-x;
+          return y-x; 
         }
         return (""+A).localeCompare(""+B);
       });
@@ -188,7 +107,7 @@
         let asc=false;
         th.addEventListener("click",()=>{
           const key=th.dataset.key;
-          const numeric=["Name (ID)","Return %","Rank"].includes(key);
+          const numeric = (key==="Region Rank"||key==="Return %"||key==="Rank");
           let sorted=sortByKey(rows,key,numeric);
           if(asc)sorted.reverse();
           asc=!asc;
@@ -198,7 +117,8 @@
     }
 
     function updateTimestamp(){
-      lastUpdatedEl.textContent="Refreshed: "+new Date().toLocaleString();
+      const now = new Date();
+      lastUpdatedEl.textContent = "Refreshed: " + now.toLocaleString("en-US",{timeZone:"America/Los_Angeles"}) + " PT";
     }
 
     function loadCSV(){
@@ -224,7 +144,7 @@
     loadCSV();
   </script>
 
-  <!--thumbnails -->
+  <!-- MarketWatch-->
   <script>
     (function(){
       const MW_RSS = 'https://www.marketwatch.com/rss/topstories';
@@ -232,7 +152,6 @@
       const errEl  = document.getElementById('news-error');
       const loadingEl = document.getElementById('news-loading');
 
-     
       async function loadViaRss2Json() {
         const url = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(MW_RSS);
         const r = await fetch(url, { cache: 'no-store' });
@@ -243,41 +162,37 @@
           title: it.title,
           link: it.link,
           date: it.pubDate,
-      
           thumb: it.thumbnail || (it.enclosure && (it.enclosure.link || it.enclosure.url)) || ''
         }));
       }
 
-      
       async function loadViaAllOrigins() {
-        const url = 'https://api.allorigins.win/get?url=' + encodeURIComponent(MW_RSS);
+        const url = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(MW_RSS);
         const r = await fetch(url, { cache: 'no-store' });
         if (!r.ok) throw new Error('allorigins HTTP ' + r.status);
-        const json = await r.json();
-        const xml = new DOMParser().parseFromString(json.contents, 'text/xml');
+        const text = await r.text();
+        const xml = new DOMParser().parseFromString(text, 'text/xml');
         const items = Array.from(xml.querySelectorAll('item')).slice(0, 6);
         if (!items.length) throw new Error('allorigins no items');
-        const ns = (el, sel) => el.querySelector(sel) || el.querySelector(sel.replace('media\\:', ''));
+        const mediaSel = 'media\\:content[url], enclosure[url], content[url]';
         return items.map(it => {
           const title = it.querySelector('title')?.textContent ?? 'Untitled';
           const link  = it.querySelector('link')?.textContent ?? '#';
           const date  = it.querySelector('pubDate')?.textContent ?? '';
-          const media = it.querySelector('media\\:content[url], content[url], enclosure[url]');
+          const media = it.querySelector(mediaSel);
           const thumb = media ? (media.getAttribute('url') || '') : '';
           return { title, link, date, thumb };
         });
       }
 
-     
       async function fetchOgImage(url, timeoutMs=3500) {
         const controller = new AbortController();
         const t = setTimeout(() => controller.abort(), timeoutMs);
         try {
-          const proxied = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+          const proxied = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
           const r = await fetch(proxied, { signal: controller.signal, cache:'no-store' });
           if (!r.ok) throw new Error('og proxy HTTP ' + r.status);
-          const data = await r.json();
-          const html = data.contents;
+          const html = await r.text();
           const doc = new DOMParser().parseFromString(html, 'text/html');
           const og = doc.querySelector('meta[property="og:image"], meta[name="og:image"]');
           return og?.getAttribute('content') || '';
@@ -285,9 +200,21 @@
         finally { clearTimeout(t); }
       }
 
+      function toPT(dateStr){
+        if(!dateStr) return '';
+        const dt = new Date(dateStr);
+        const s = new Intl.DateTimeFormat('en-US',{
+          timeZone:'America/Los_Angeles',
+          year:'numeric', month:'short', day:'numeric',
+          hour:'numeric', minute:'2-digit', hour12:true
+        }).format(dt);
+        return s + ' PT';
+      }
+
       function render(items) {
-        const fmt = v => v ? new Date(v).toLocaleString() : '';
+        if (loadingEl) loadingEl.remove();
         listEl.innerHTML = items.map(it => {
+          const when = it.date ? toPT(it.date) : '';
           const imgTag = it.thumb
             ? `<a href="${it.link}" target="_blank" rel="noopener">
                  <img src="${it.thumb}" alt="" style="width:96px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #222633;" loading="lazy">
@@ -298,7 +225,7 @@
               ${imgTag}
               <div style="min-width:0;">
                 <a target="_blank" rel="noopener" href="${it.link}" style="color:#7bb3ff;text-decoration:none;">${it.title}</a>
-                ${it.date ? `<div style="color:#aab2bd;font-size:12px;margin-top:2px;">${fmt(it.date)}</div>` : ''}
+                ${when ? `<div style="color:#aab2bd;font-size:12px;margin-top:2px;">${when}</div>` : ''}
               </div>
             </li>`;
         }).join('');
@@ -308,12 +235,10 @@
         try {
           loadingEl && loadingEl.remove();
 
-          
           let items;
           try { items = await loadViaRss2Json(); }
           catch { items = await loadViaAllOrigins(); }
 
-        
           const missingIdx = items
             .map((it, i) => (!it.thumb ? i : -1))
             .filter(i => i >= 0)
@@ -335,11 +260,3 @@
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
