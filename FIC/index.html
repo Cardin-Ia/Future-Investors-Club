@@ -3,17 +3,23 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Investors Club Leaderboard</title>
+  <title>Future Investors Club Leaderboard</title>
   <link rel="stylesheet" href="styles.css" />
+  <link rel="shortcut icon" type="image/png" href="assets/club-logo.png">
 </head>
 <body>
   <header class="site-header">
-    <h1>Investors Club Leaderboard</h1>
-    <p class="subtitle">Updated by officers every few days</p>
+    <div class="brand">
+      <img src="assets/club-logo.png" alt="Future Investors Club logo" class="logo">
+      <div>
+        <h1>Future Investors Club Leaderboard</h1>
+      </div>
+    </div>
   </header>
 
+
   <main class="container">
-    <!-- Leaderboard Section -->
+    <!-- Leaderboard -->
     <section class="card board">
       <div class="board-header">
         <h2>Current Standings</h2>
@@ -25,10 +31,10 @@
           <thead>
             <tr>
               <th data-key="Rank" class="sortable">Rank</th>
-              <th data-key="Member" class="sortable">Member</th>
-              <th data-key="Portfolio Value" class="sortable">Portfolio Value</th>
+              <th data-key="Name (ID)" class="sortable">Name (ID)</th>
+              <th data-key="Region Rank" class="sortable">Region Rank</th>
               <th data-key="Return %" class="sortable">Return %</th>
-              <th data-key="Notes">Notes</th>
+              <th data-key="Total Equity">Total Equity</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -38,28 +44,216 @@
       <p class="tip">This page updates automatically on refresh.</p>
     </section>
 
-    <!-- Market Updates Section -->
+    <!-- Market Updates-->
     <section class="card news">
       <h2>Market Updates</h2>
-      <p class="subtitle">Latest from @MarketWatch</p>
 
-      <!-- ✅ Your exact Twitter Publish embed -->
-      <a class="twitter-timeline" data-theme="dark" href="https://twitter.com/MarketWatch?ref_src=twsrc%5Etfw">
-        Tweets by MarketWatch
-      </a>
-      <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+      <ul id="news-list" class="news-list" style="margin:0; padding-left:0; list-style:none;">
+        <li id="news-loading" style="color:#aab2bd;">Loading headlines…</li>
+      </ul>
+
+     
+
+      <p id="news-error" class="subtitle" style="display:none;">Couldn’t load headlines right now.</p>
     </section>
   </main>
 
-  <!-- Papa Parse for Google Sheet CSV -->
+  
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
-  <!-- Your public Google Sheet CSV link -->
+  <!-- Google Sheet CSV link -->
   <script>
     const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS8N623kjjzxGNpqxrNsH2eZKK8EPjKO1mHLrp0EqLbzTCZ9HcOchvhllLKdnfMx2DVb9Lb4jUYc6Gd/pub?gid=0&single=true&output=csv";
   </script>
 
-  <!-- Leaderboard logic (keep your current script.js) -->
-  <script src="script.js"></script>
+  <!-- Leaderboard -->
+  <script>
+    const tbody = document.querySelector("#leaderboard tbody");
+    const lastUpdatedEl = document.getElementById("last-updated");
+
+    function parseCurrency(s){ return parseFloat((s||"").replace(/[^0-9.-]/g,"")); }
+    function parsePercent(s){ return parseFloat((s||"").replace(/%/g,"")); }
+
+    function renderTable(rows){
+      tbody.innerHTML = "";
+      rows.forEach(r=>{
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${r["Rank"] ?? ""}</td>
+          <td>${r["Name (ID)"] ?? ""}</td>
+          <td>${r["Region Rank"] ?? ""}</td>
+          <td>${r["Return %"] ?? ""}</td>
+          <td>${r["Total Equity"] ?? ""}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function sortByKey(rows,key,numeric=false){
+      const copy=[...rows];
+      copy.sort((a,b)=>{
+        const A=a[key]??"", B=b[key]??"";
+        if(numeric){
+          const x=key==="Return %"?parsePercent(A):parseCurrency(A);
+          const y=key==="Return %"?parsePercent(B):parseCurrency(B);
+          if(isNaN(x)&&isNaN(y))return 0;
+          if(isNaN(x))return 1;
+          if(isNaN(y))return -1;
+          return y-x;
+        }
+        return (""+A).localeCompare(""+B);
+      });
+      return copy;
+    }
+
+    function attachSorting(rows){
+      document.querySelectorAll("th.sortable").forEach(th=>{
+        let asc=false;
+        th.addEventListener("click",()=>{
+          const key=th.dataset.key;
+          const numeric=["Name (ID)","Return %","Rank"].includes(key);
+          let sorted=sortByKey(rows,key,numeric);
+          if(asc)sorted.reverse();
+          asc=!asc;
+          renderTable(sorted);
+        });
+      });
+    }
+
+    function updateTimestamp(){
+      lastUpdatedEl.textContent="Refreshed: "+new Date().toLocaleString();
+    }
+
+    function loadCSV(){
+      Papa.parse(SHEET_CSV_URL,{
+        download:true,header:true,
+        complete:res=>{
+          const rows=res.data.filter(r=>Object.values(r).some(v=>v&&String(v).trim()!==""));
+          let sorted=rows;
+          if(rows[0]&&"Rank"in rows[0])
+            sorted=rows.slice().sort((a,b)=>(parseFloat(a["Rank"])||999)-(parseFloat(b["Rank"])||999));
+          else if(rows[0]&&"Return %" in rows[0])
+            sorted=sortByKey(rows,"Return %",true);
+          renderTable(sorted);
+          attachSorting(rows);
+          updateTimestamp();
+        },
+        error:err=>{
+          tbody.innerHTML="<tr><td colspan='5'>Error loading leaderboard.</td></tr>";
+          console.error(err);
+        }
+      });
+    }
+    loadCSV();
+  </script>
+
+  <!--thumbnails -->
+  <script>
+    (function(){
+      const MW_RSS = 'https://www.marketwatch.com/rss/topstories';
+      const listEl = document.getElementById('news-list');
+      const errEl  = document.getElementById('news-error');
+      const loadingEl = document.getElementById('news-loading');
+
+     
+      async function loadViaRss2Json() {
+        const url = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(MW_RSS);
+        const r = await fetch(url, { cache: 'no-store' });
+        if (!r.ok) throw new Error('rss2json HTTP ' + r.status);
+        const data = await r.json();
+        if (!data || !Array.isArray(data.items)) throw new Error('rss2json bad payload');
+        return data.items.slice(0, 6).map(it => ({
+          title: it.title,
+          link: it.link,
+          date: it.pubDate,
+      
+          thumb: it.thumbnail || (it.enclosure && (it.enclosure.link || it.enclosure.url)) || ''
+        }));
+      }
+
+      
+      async function loadViaAllOrigins() {
+        const url = 'https://api.allorigins.win/get?url=' + encodeURIComponent(MW_RSS);
+        const r = await fetch(url, { cache: 'no-store' });
+        if (!r.ok) throw new Error('allorigins HTTP ' + r.status);
+        const json = await r.json();
+        const xml = new DOMParser().parseFromString(json.contents, 'text/xml');
+        const items = Array.from(xml.querySelectorAll('item')).slice(0, 6);
+        if (!items.length) throw new Error('allorigins no items');
+        const ns = (el, sel) => el.querySelector(sel) || el.querySelector(sel.replace('media\\:', ''));
+        return items.map(it => {
+          const title = it.querySelector('title')?.textContent ?? 'Untitled';
+          const link  = it.querySelector('link')?.textContent ?? '#';
+          const date  = it.querySelector('pubDate')?.textContent ?? '';
+          const media = it.querySelector('media\\:content[url], content[url], enclosure[url]');
+          const thumb = media ? (media.getAttribute('url') || '') : '';
+          return { title, link, date, thumb };
+        });
+      }
+
+     
+      async function fetchOgImage(url, timeoutMs=3500) {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const proxied = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+          const r = await fetch(proxied, { signal: controller.signal, cache:'no-store' });
+          if (!r.ok) throw new Error('og proxy HTTP ' + r.status);
+          const data = await r.json();
+          const html = data.contents;
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          const og = doc.querySelector('meta[property="og:image"], meta[name="og:image"]');
+          return og?.getAttribute('content') || '';
+        } catch { return ''; }
+        finally { clearTimeout(t); }
+      }
+
+      function render(items) {
+        const fmt = v => v ? new Date(v).toLocaleString() : '';
+        listEl.innerHTML = items.map(it => {
+          const imgTag = it.thumb
+            ? `<a href="${it.link}" target="_blank" rel="noopener">
+                 <img src="${it.thumb}" alt="" style="width:96px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #222633;" loading="lazy">
+               </a>`
+            : `<div style="width:96px;height:64px;border-radius:8px;background:#11151f;border:1px solid #222633;"></div>`;
+          return `
+            <li style="display:flex;gap:10px;align-items:flex-start;margin:10px 0;">
+              ${imgTag}
+              <div style="min-width:0;">
+                <a target="_blank" rel="noopener" href="${it.link}" style="color:#7bb3ff;text-decoration:none;">${it.title}</a>
+                ${it.date ? `<div style="color:#aab2bd;font-size:12px;margin-top:2px;">${fmt(it.date)}</div>` : ''}
+              </div>
+            </li>`;
+        }).join('');
+      }
+
+      (async () => {
+        try {
+          loadingEl && loadingEl.remove();
+
+          
+          let items;
+          try { items = await loadViaRss2Json(); }
+          catch { items = await loadViaAllOrigins(); }
+
+        
+          const missingIdx = items
+            .map((it, i) => (!it.thumb ? i : -1))
+            .filter(i => i >= 0)
+            .slice(0, 3);
+
+          await Promise.all(missingIdx.map(async i => {
+            const og = await fetchOgImage(items[i].link);
+            if (og) items[i].thumb = og;
+          }));
+
+          render(items);
+        } catch (e) {
+          console.error('News load failed:', e);
+          errEl && (errEl.style.display = 'block');
+          listEl && (listEl.innerHTML = '');
+        }
+      })();
+    })();
+  </script>
 </body>
 </html>
